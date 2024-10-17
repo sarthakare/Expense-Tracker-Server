@@ -1,3 +1,4 @@
+import bcrypt
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
 from database import SessionLocal, create_tables
@@ -18,10 +19,17 @@ def get_db():
     finally:
         db.close()
 
-# API to create a user
+# Helper function to hash passwords
+def hash_password(password: str) -> str:
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed_password.decode('utf-8')
+
+# API to create a user with hashed password
 @app.post("/users/")
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = User(name=user.name, email=user.email, password=user.password)
+    hashed_password = hash_password(user.password)  # Hash the password
+    db_user = User(name=user.name, email=user.email, password=hashed_password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -50,4 +58,3 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.delete(user)
     db.commit()
     return {"message": "User deleted"}
-
